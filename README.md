@@ -1,6 +1,7 @@
 # CI Gatekeeper Bot (Jev)
 
 <!-- smoke-test PR: trivial docs-only change to exercise the real Jev pipeline end-to-end -->
+<!-- mixed-diff test: this trivial line is paired with an auth-shaped test fixture in the same PR -->
 
 
 A GitHub Action that uses Jev (TypeSafe AI, via the
