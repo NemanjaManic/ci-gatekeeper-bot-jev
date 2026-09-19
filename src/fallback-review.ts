@@ -2,6 +2,7 @@
 // uses the standard `generateText` API (free-text detailed review), not
 // `experimental_evaluate` (typed decisions), since FR-006's secondary
 // review is meant to produce human-readable findings.
+import * as core from "@actions/core";
 import { gateway, generateText } from "ai";
 import { recordDecisionLogEntry } from "./metrics";
 import { JevTriageInput, PullRequestTriageDecision, RISK_ORDER, RiskConfiguration, SecondaryReviewResult } from "./types";
@@ -74,7 +75,8 @@ export async function runFallbackReview(
     });
 
     return { triage_decision_ref: ref, status: "completed", findings: result.text, model };
-  } catch {
+  } catch (err) {
+    core.warning(`Fallback review call failed: ${err instanceof Error ? err.message : String(err)}`);
     recordDecisionLogEntry({
       call_type: "fallback-review",
       pull_request_number: decision.pull_request_number,

@@ -5,6 +5,7 @@
 // `probability` (not a plain true/false), and choice questions answer with
 // a `choice` string matching one of the `criteria` keys. `should_review` and
 // `touches_secrets` are thresholded at probability > 0.5 below.
+import * as core from "@actions/core";
 import { experimental_evaluate as evaluate } from "ai";
 import { minimatch } from "minimatch";
 import { recordDecisionLogEntry } from "./metrics";
@@ -129,7 +130,10 @@ export async function triagePullRequest(
 
   try {
     response = await callJev(input);
-  } catch {
+  } catch (err) {
+    // Log the error message (never the diff/state passed to Jev) so a real
+    // failure is diagnosable instead of silently falling back every time.
+    core.warning(`Jev triage call failed, defaulting to human-review: ${err instanceof Error ? err.message : String(err)}`);
     const latency_ms = Date.now() - startedAt;
     recordDecisionLogEntry({
       call_type: "jev-triage",
