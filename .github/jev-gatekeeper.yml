@@ -1,0 +1,16 @@
+# Repo config for the Jev PR Gatekeeper action itself (dogfooding).
+# Precedence: this file > action.yml inputs > built-in defaults (see
+# specs/001-jev-pr-triage/research.md).
+
+risk_threshold_for_review: cosmetic
+risk_threshold_for_block: blocking
+fallback_review_risk_threshold: blocking
+
+# Files where the safety-critical routing/config logic lives. Any PR that
+# touches these is forced to at least "block", regardless of what Jev itself
+# judges the diff's risk to be (deterministic safety net, see
+# specs/001-jev-pr-triage/contracts/jev-schema.md mapping rule 1).
+sensitive_path_patterns:
+  - "src/jev.ts"
+  - "src/config.ts"
+  - ".github/workflows/**"
