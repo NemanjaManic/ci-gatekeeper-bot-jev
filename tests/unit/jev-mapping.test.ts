@@ -14,6 +14,7 @@ const baseConfig: RiskConfiguration = {
   risk_threshold_for_review: "cosmetic",
   risk_threshold_for_block: "blocking",
   fallback_review_risk_threshold: "blocking",
+  fallback_review_model: "test/mock-model",
   sensitive_path_patterns: [],
 };
 

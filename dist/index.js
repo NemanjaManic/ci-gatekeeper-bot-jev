@@ -48012,6 +48012,10 @@ const BUILT_IN_DEFAULTS = {
     risk_threshold_for_review: "cosmetic",
     risk_threshold_for_block: "blocking",
     fallback_review_risk_threshold: "blocking",
+    // "" means: auto-pick the cheapest available language model on the
+    // account at call time (see fallback-review.ts) instead of pinning a
+    // specific vendor/model in code.
+    fallback_review_model: "",
     sensitive_path_patterns: [],
 };
 function readRepoConfig(configPath) {
@@ -48033,6 +48037,7 @@ function readActionInputs() {
     const riskThresholdForReview = core.getInput("risk-threshold-for-review");
     const riskThresholdForBlock = core.getInput("risk-threshold-for-block");
     const fallbackReviewRiskThreshold = core.getInput("fallback-review-risk-threshold");
+    const fallbackReviewModel = core.getInput("fallback-review-model");
     if (riskThresholdForReview)
         inputs.risk_threshold_for_review = riskThresholdForReview;
     if (riskThresholdForBlock)
@@ -48040,6 +48045,8 @@ function readActionInputs() {
     if (fallbackReviewRiskThreshold) {
         inputs.fallback_review_risk_threshold = fallbackReviewRiskThreshold;
     }
+    if (fallbackReviewModel)
+        inputs.fallback_review_model = fallbackReviewModel;
     return inputs;
 }
 // Precedence (research.md): repo config > action.yml inputs > built-in
@@ -48064,6 +48071,9 @@ function loadRiskConfiguration() {
         fallback_review_risk_threshold: repoConfig.fallback_review_risk_threshold ??
             actionInputs.fallback_review_risk_threshold ??
             BUILT_IN_DEFAULTS.fallback_review_risk_threshold,
+        fallback_review_model: repoConfig.fallback_review_model ??
+            actionInputs.fallback_review_model ??
+            BUILT_IN_DEFAULTS.fallback_review_model,
         sensitive_path_patterns: repoConfig.sensitive_path_patterns ?? BUILT_IN_DEFAULTS.sensitive_path_patterns,
     };
 }
@@ -48086,14 +48096,25 @@ exports.runFallbackReview = runFallbackReview;
 const ai_1 = __nccwpck_require__(7271);
 const metrics_1 = __nccwpck_require__(5670);
 const types_1 = __nccwpck_require__(6141);
-// Chosen for its free tier (research.md). If the Gateway doesn't proxy this
-// model/tier for this account, swap to the next cheapest available model.
-const FALLBACK_MODEL = "google/gemini-2.0-flash";
 // Constitution II — escalate only when necessary: only PRs routed to
 // human-review at/above the configured fallback threshold get the detailed
 // review (data-model.md validation rule).
 function shouldRunFallbackReview(decision, config) {
     return decision.route === "human-review" && types_1.RISK_ORDER[decision.risk] >= types_1.RISK_ORDER[config.fallback_review_risk_threshold];
+}
+// No vendor/model is hardcoded here: if the maintainer hasn't pinned one via
+// config, this discovers whatever language models the account's AI Gateway
+// actually has access to and picks the cheapest by combined input+output
+// price per token — resilient to a specific model being unavailable/renamed,
+// and consistent with the project's cheap-first ethos.
+async function pickCheapestAvailableModel() {
+    const { models } = await ai_1.gateway.getAvailableModels();
+    const priced = models.filter((m) => (m.modelType ?? "language") === "language" && m.pricing != null);
+    if (priced.length === 0) {
+        throw new Error("No priced language models available on this AI Gateway account");
+    }
+    const costOf = (m) => Number(m.pricing.input) + Number(m.pricing.output);
+    return priced.reduce((cheapest, m) => (costOf(m) < costOf(cheapest) ? m : cheapest)).id;
 }
 function buildReviewPrompt(input, decision) {
     return [
@@ -48106,12 +48127,16 @@ function buildReviewPrompt(input, decision) {
         input.diff,
     ].join("\n");
 }
-async function runFallbackReview(input, decision) {
+async function runFallbackReview(input, decision, config) {
     const ref = { pull_request_number: decision.pull_request_number, head_sha: decision.head_sha };
     const startedAt = Date.now();
+    let model = config.fallback_review_model;
     try {
+        if (!model) {
+            model = await pickCheapestAvailableModel();
+        }
         const result = await (0, ai_1.generateText)({
-            model: FALLBACK_MODEL,
+            model,
             prompt: buildReviewPrompt(input, decision),
         });
         (0, metrics_1.recordDecisionLogEntry)({
@@ -48122,7 +48147,7 @@ async function runFallbackReview(input, decision) {
             latency_ms: Date.now() - startedAt,
             status: "success",
         });
-        return { triage_decision_ref: ref, status: "completed", findings: result.text, model: FALLBACK_MODEL };
+        return { triage_decision_ref: ref, status: "completed", findings: result.text, model };
     }
     catch {
         (0, metrics_1.recordDecisionLogEntry)({
@@ -48135,7 +48160,7 @@ async function runFallbackReview(input, decision) {
         });
         // FR-006 Acceptance Scenario 3: primary decision still stands; comment
         // states the detailed review was unavailable (see comment.ts).
-        return { triage_decision_ref: ref, status: "unavailable", findings: null, model: FALLBACK_MODEL };
+        return { triage_decision_ref: ref, status: "unavailable", findings: null, model: model || "unknown" };
     }
 }
 
@@ -48322,9 +48347,13 @@ const STATUS_CHECK_CONCLUSION = {
 async function run() {
     try {
         const token = core.getInput("github-token", { required: true });
-        // The `ai-gateway-api-key` input is expected to be exported by the
-        // consuming workflow as the AI_GATEWAY_API_KEY environment variable,
-        // which the `ai` SDK reads directly — never logged here.
+        // The `ai` SDK's Vercel AI Gateway integration reads the key directly
+        // from process.env.AI_GATEWAY_API_KEY (verified against
+        // node_modules/@ai-sdk/gateway) — it does not accept it as a call
+        // parameter, so the action input has to be bridged into that env var
+        // here. core.getInput never logs the value.
+        const aiGatewayApiKey = core.getInput("ai-gateway-api-key", { required: true });
+        process.env.AI_GATEWAY_API_KEY = aiGatewayApiKey;
         const octokit = github.getOctokit(token);
         const ctx = (0, github_1.getPullRequestContext)();
         const config = (0, config_1.loadRiskConfiguration)();
@@ -48334,7 +48363,7 @@ async function run() {
         let fallbackLatencyMs;
         if ((0, fallback_review_1.shouldRunFallbackReview)(decision, config)) {
             const fallbackStart = Date.now();
-            secondaryReview = await (0, fallback_review_1.runFallbackReview)({ diff, changedFiles, commitMessages }, decision);
+            secondaryReview = await (0, fallback_review_1.runFallbackReview)({ diff, changedFiles, commitMessages }, decision, config);
             fallbackLatencyMs = Date.now() - fallbackStart;
         }
         await (0, github_1.setStatusCheck)(octokit, ctx, STATUS_CHECK_CONCLUSION[decision.route]);

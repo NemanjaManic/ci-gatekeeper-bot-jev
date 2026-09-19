@@ -34,19 +34,30 @@ alternatives considered for each, for future reference.
   unnecessary extra credential surface when the Gateway already proxies
   multiple providers).
 
-## Fallback/secondary review model: Gemini
+## Fallback/secondary review model: auto-discovered cheapest, not hardcoded
 
-- **Decision**: The FR-006 secondary review uses a Gemini model via Vercel AI
-  Gateway.
-- **Rationale**: Chosen for its free tier, keeping the "expensive path" cheap
-  during development/portfolio use.
-- **Alternatives considered**: Claude or GPT via the same Gateway — better
-  attribution isn't needed here since (per Constitution II) this path is
-  invoked rarely, but Gemini was preferred specifically for cost.
-- **Open verification item**: Confirm during implementation that Vercel AI
-  Gateway actually proxies the intended Gemini model/tier as expected; if not
-  available, fall back to the next cheapest available model on the Gateway and
-  update this document.
+- **Decision**: The FR-006 secondary review does not pin a specific vendor
+  model in code. By default (`fallback_review_model` unset/empty),
+  `src/fallback-review.ts` calls the AI Gateway's `gateway.getAvailableModels()`
+  (verified against the installed `@ai-sdk/gateway`) to list every language
+  model the account actually has access to, with per-model `pricing.input`/
+  `pricing.output`, and picks whichever is cheapest by combined
+  input+output price per token at call time. A maintainer can still pin an
+  exact model via the `fallback-review-model` input or the repo config's
+  `fallback_review_model` field.
+- **Rationale**: An initial version hardcoded a specific Gemini model as the
+  default. That's fragile — it silently breaks if the model is renamed,
+  deprecated, or simply not enabled/available on a given account's Gateway
+  plan, and it privileges one vendor for no functional reason. Auto-discovery
+  keeps the "cheap-first" principle (Constitution I) genuinely
+  provider-agnostic and self-healing as pricing/availability changes,
+  without needing a code change.
+- **Alternatives considered**: Hardcoding one specific model (rejected, see
+  above); using the Gateway's `providerOptions.gateway.sort: 'cost'` +
+  `models: [...]` fallback-chain option instead of pre-querying
+  `getAvailableModels()` (viable alternative, but still requires picking a
+  concrete starting `model` string and a hardcoded fallback list; the
+  discovery approach needs neither).
 
 ## Package manager: npm
 

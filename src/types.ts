@@ -55,6 +55,11 @@ export interface RiskConfiguration {
   risk_threshold_for_review: Risk;
   risk_threshold_for_block: Risk;
   fallback_review_risk_threshold: Risk;
+  // Any Vercel AI Gateway model id (e.g. "google/gemini-2.0-flash",
+  // "anthropic/claude-sonnet-5", "openai/gpt-4o-mini"), or "" (the default)
+  // to auto-pick the cheapest available language model on the account via
+  // gateway.getAvailableModels() at call time. Not hardcoded to any vendor.
+  fallback_review_model: string;
   sensitive_path_patterns: string[];
 }
 

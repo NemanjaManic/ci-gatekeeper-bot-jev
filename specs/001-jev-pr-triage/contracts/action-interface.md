@@ -22,7 +22,8 @@ required trigger for consumers, and validated in `quickstart.md`.)
 | `ai-gateway-api-key` | yes | — | Should be passed from a repo secret (`AI_GATEWAY_API_KEY`); never logged |
 | `risk-threshold-for-review` | no | `"cosmetic"` | Overridable by `.github/jev-gatekeeper.yml` (repo config takes precedence — see `research.md`) |
 | `risk-threshold-for-block` | no | `"blocking"` | Same precedence rule |
-| `fallback-review-risk-threshold` | no | `"blocking"` | Minimum risk (at `route == human-review`) that triggers the Gemini secondary review |
+| `fallback-review-risk-threshold` | no | `"blocking"` | Minimum risk (at `route == human-review`) that triggers the secondary review |
+| `fallback-review-model` | no | `""` | AI Gateway model id for the secondary review; empty auto-picks the cheapest available language model at call time (not hardcoded to any vendor — see `research.md`) |
 | `config-path` | no | `.github/jev-gatekeeper.yml` | Path to the optional repo config file (FR-008) |
 
 ## Outputs

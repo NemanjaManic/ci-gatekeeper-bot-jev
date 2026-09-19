@@ -2,19 +2,35 @@
 // uses the standard `generateText` API (free-text detailed review), not
 // `experimental_evaluate` (typed decisions), since FR-006's secondary
 // review is meant to produce human-readable findings.
-import { generateText } from "ai";
+import { gateway, generateText } from "ai";
 import { recordDecisionLogEntry } from "./metrics";
 import { JevTriageInput, PullRequestTriageDecision, RISK_ORDER, RiskConfiguration, SecondaryReviewResult } from "./types";
-
-// Chosen for its free tier (research.md). If the Gateway doesn't proxy this
-// model/tier for this account, swap to the next cheapest available model.
-const FALLBACK_MODEL = "google/gemini-2.0-flash";
 
 // Constitution II — escalate only when necessary: only PRs routed to
 // human-review at/above the configured fallback threshold get the detailed
 // review (data-model.md validation rule).
 export function shouldRunFallbackReview(decision: PullRequestTriageDecision, config: RiskConfiguration): boolean {
   return decision.route === "human-review" && RISK_ORDER[decision.risk] >= RISK_ORDER[config.fallback_review_risk_threshold];
+}
+
+// No vendor/model is hardcoded here: if the maintainer hasn't pinned one via
+// config, this discovers whatever language models the account's AI Gateway
+// actually has access to and picks the cheapest by combined input+output
+// price per token — resilient to a specific model being unavailable/renamed,
+// and consistent with the project's cheap-first ethos.
+async function pickCheapestAvailableModel(): Promise<string> {
+  const { models } = await gateway.getAvailableModels();
+  const priced = models.filter(
+    (m) => (m.modelType ?? "language") === "language" && m.pricing != null
+  );
+
+  if (priced.length === 0) {
+    throw new Error("No priced language models available on this AI Gateway account");
+  }
+
+  const costOf = (m: (typeof priced)[number]) => Number(m.pricing!.input) + Number(m.pricing!.output);
+
+  return priced.reduce((cheapest, m) => (costOf(m) < costOf(cheapest) ? m : cheapest)).id;
 }
 
 function buildReviewPrompt(input: JevTriageInput, decision: PullRequestTriageDecision): string {
@@ -31,14 +47,20 @@ function buildReviewPrompt(input: JevTriageInput, decision: PullRequestTriageDec
 
 export async function runFallbackReview(
   input: JevTriageInput,
-  decision: PullRequestTriageDecision
+  decision: PullRequestTriageDecision,
+  config: RiskConfiguration
 ): Promise<SecondaryReviewResult> {
   const ref = { pull_request_number: decision.pull_request_number, head_sha: decision.head_sha };
   const startedAt = Date.now();
+  let model = config.fallback_review_model;
 
   try {
+    if (!model) {
+      model = await pickCheapestAvailableModel();
+    }
+
     const result = await generateText({
-      model: FALLBACK_MODEL,
+      model,
       prompt: buildReviewPrompt(input, decision),
     });
 
@@ -51,7 +73,7 @@ export async function runFallbackReview(
       status: "success",
     });
 
-    return { triage_decision_ref: ref, status: "completed", findings: result.text, model: FALLBACK_MODEL };
+    return { triage_decision_ref: ref, status: "completed", findings: result.text, model };
   } catch {
     recordDecisionLogEntry({
       call_type: "fallback-review",
@@ -64,6 +86,6 @@ export async function runFallbackReview(
 
     // FR-006 Acceptance Scenario 3: primary decision still stands; comment
     // states the detailed review was unavailable (see comment.ts).
-    return { triage_decision_ref: ref, status: "unavailable", findings: null, model: FALLBACK_MODEL };
+    return { triage_decision_ref: ref, status: "unavailable", findings: null, model: model || "unknown" };
   }
 }

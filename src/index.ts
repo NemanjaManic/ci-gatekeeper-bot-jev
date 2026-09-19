@@ -16,9 +16,13 @@ const STATUS_CHECK_CONCLUSION: Record<Route, "success" | "pending" | "failure"> 
 export async function run(): Promise<void> {
   try {
     const token = core.getInput("github-token", { required: true });
-    // The `ai-gateway-api-key` input is expected to be exported by the
-    // consuming workflow as the AI_GATEWAY_API_KEY environment variable,
-    // which the `ai` SDK reads directly — never logged here.
+    // The `ai` SDK's Vercel AI Gateway integration reads the key directly
+    // from process.env.AI_GATEWAY_API_KEY (verified against
+    // node_modules/@ai-sdk/gateway) — it does not accept it as a call
+    // parameter, so the action input has to be bridged into that env var
+    // here. core.getInput never logs the value.
+    const aiGatewayApiKey = core.getInput("ai-gateway-api-key", { required: true });
+    process.env.AI_GATEWAY_API_KEY = aiGatewayApiKey;
 
     const octokit = github.getOctokit(token);
     const ctx = getPullRequestContext();
@@ -37,7 +41,7 @@ export async function run(): Promise<void> {
     let fallbackLatencyMs: number | undefined;
     if (shouldRunFallbackReview(decision, config)) {
       const fallbackStart = Date.now();
-      secondaryReview = await runFallbackReview({ diff, changedFiles, commitMessages }, decision);
+      secondaryReview = await runFallbackReview({ diff, changedFiles, commitMessages }, decision, config);
       fallbackLatencyMs = Date.now() - fallbackStart;
     }
 

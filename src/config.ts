@@ -9,6 +9,10 @@ const BUILT_IN_DEFAULTS: Omit<RiskConfiguration, "source"> = {
   risk_threshold_for_review: "cosmetic",
   risk_threshold_for_block: "blocking",
   fallback_review_risk_threshold: "blocking",
+  // "" means: auto-pick the cheapest available language model on the
+  // account at call time (see fallback-review.ts) instead of pinning a
+  // specific vendor/model in code.
+  fallback_review_model: "",
   sensitive_path_patterns: [],
 };
 
@@ -16,6 +20,7 @@ interface RawConfigFile {
   risk_threshold_for_review?: Risk;
   risk_threshold_for_block?: Risk;
   fallback_review_risk_threshold?: Risk;
+  fallback_review_model?: string;
   sensitive_path_patterns?: string[];
 }
 
@@ -42,12 +47,14 @@ function readActionInputs(): RawConfigFile {
   const riskThresholdForReview = core.getInput("risk-threshold-for-review");
   const riskThresholdForBlock = core.getInput("risk-threshold-for-block");
   const fallbackReviewRiskThreshold = core.getInput("fallback-review-risk-threshold");
+  const fallbackReviewModel = core.getInput("fallback-review-model");
 
   if (riskThresholdForReview) inputs.risk_threshold_for_review = riskThresholdForReview as Risk;
   if (riskThresholdForBlock) inputs.risk_threshold_for_block = riskThresholdForBlock as Risk;
   if (fallbackReviewRiskThreshold) {
     inputs.fallback_review_risk_threshold = fallbackReviewRiskThreshold as Risk;
   }
+  if (fallbackReviewModel) inputs.fallback_review_model = fallbackReviewModel;
   return inputs;
 }
 
@@ -79,6 +86,10 @@ export function loadRiskConfiguration(): RiskConfiguration {
       repoConfig.fallback_review_risk_threshold ??
       actionInputs.fallback_review_risk_threshold ??
       BUILT_IN_DEFAULTS.fallback_review_risk_threshold,
+    fallback_review_model:
+      repoConfig.fallback_review_model ??
+      actionInputs.fallback_review_model ??
+      BUILT_IN_DEFAULTS.fallback_review_model,
     sensitive_path_patterns:
       repoConfig.sensitive_path_patterns ?? BUILT_IN_DEFAULTS.sensitive_path_patterns,
   };

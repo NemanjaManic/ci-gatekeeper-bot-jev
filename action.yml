@@ -21,6 +21,14 @@ inputs:
     description: "Minimum risk level (at route=human-review) that triggers the detailed secondary review"
     required: false
     default: "blocking"
+  fallback-review-model:
+    description: >-
+      AI Gateway model id for the detailed secondary review (e.g.
+      "openai/gpt-4o-mini", "anthropic/claude-sonnet-5",
+      "google/gemini-2.0-flash"). Leave empty (default) to auto-pick the
+      cheapest available language model on your Gateway account at run time.
+    required: false
+    default: ""
   config-path:
     description: "Path to the optional repo risk-configuration file"
     required: false

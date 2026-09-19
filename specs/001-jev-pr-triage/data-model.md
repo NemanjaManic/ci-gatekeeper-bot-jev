@@ -61,7 +61,8 @@ sensitivity for a repository (FR-008, SC-006).
 | `source` | `"repo-config" \| "action-input" \| "built-in-default"` | Precedence order per `research.md`: repo-config > action-input > built-in-default |
 | `risk_threshold_for_review` | `"cosmetic" \| "moderate" \| "blocking"` | Minimum risk level that prevents `auto-approve` |
 | `risk_threshold_for_block` | `"moderate" \| "blocking"` | Minimum risk level that forces `block` over `human-review` |
-| `fallback_review_risk_threshold` | `"moderate" \| "blocking"` | Minimum risk level (at `route == human-review`) that triggers the Gemini secondary review (Constitution II) |
+| `fallback_review_risk_threshold` | `"moderate" \| "blocking"` | Minimum risk level (at `route == human-review`) that triggers the secondary review (Constitution II) |
+| `fallback_review_model` | string | AI Gateway model id for the secondary review, or `""` to auto-pick the cheapest available language model at call time (`research.md` — not hardcoded to any vendor) |
 | `sensitive_path_patterns` | string[] | Glob patterns identifying auth/migrations/CI-config files that force elevated risk regardless of diff size |
 
 **Validation rules**:

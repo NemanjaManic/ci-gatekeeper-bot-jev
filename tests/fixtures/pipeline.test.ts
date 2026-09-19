@@ -3,6 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("ai", () => ({
   experimental_evaluate: vi.fn(),
   generateText: vi.fn(),
+  gateway: {
+    getAvailableModels: vi.fn().mockResolvedValue({
+      models: [
+        { id: "mock/cheap-model", modelType: "language", pricing: { input: "0.0000001", output: "0.0000002" } },
+        { id: "mock/pricier-model", modelType: "language", pricing: { input: "0.000001", output: "0.000002" } },
+      ],
+    }),
+  },
 }));
 
 const mockOctokit = {
