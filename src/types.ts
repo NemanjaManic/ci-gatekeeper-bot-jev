@@ -39,6 +39,9 @@ export interface PullRequestTriageDecision {
   jev_recommended_route: Route | null;
   route: Route;
   escalated: boolean;
+  // Which mechanism caused the escalation, so the PR comment can name it
+  // specifically instead of a generic "a threshold or pattern matched".
+  escalation_reason: "risk-threshold" | "sensitive-path" | null;
   touches_secrets: boolean;
   source: "jev" | "fallback-default";
 }

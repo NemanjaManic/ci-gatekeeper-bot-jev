@@ -15,6 +15,7 @@ function baseDecision(overrides: Partial<PullRequestTriageDecision> = {}): PullR
     jev_recommended_route: "block",
     route: "block",
     escalated: false,
+    escalation_reason: null,
     touches_secrets: true,
     source: "jev",
     ...overrides,

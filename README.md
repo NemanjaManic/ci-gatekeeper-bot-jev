@@ -1,5 +1,8 @@
 # CI Gatekeeper Bot (Jev)
 
+<!-- smoke-test PR: trivial docs-only change to exercise the real Jev pipeline end-to-end -->
+
+
 A GitHub Action that uses Jev (TypeSafe AI, via the
 Vercel AI Gateway) to cheaply and quickly triage pull requests before an
 expensive LLM or human review. See
