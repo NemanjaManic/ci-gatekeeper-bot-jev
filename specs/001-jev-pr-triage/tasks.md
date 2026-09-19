@@ -349,16 +349,17 @@ changes.
       (from `contracts/action-interface.md`), and a placeholder section for
       the measured cost/latency numbers (SC-005), to be filled in after
       running the manual validation in `quickstart.md`.
-- [ ] T040 Run the full `quickstart.md` validation end-to-end (build, `npm
-      test`, `npm run test:fixtures`, and — since a real
-      `AI_GATEWAY_API_KEY` is available — the manual real-Jev/Gemini run),
-      and record the resulting cost/latency numbers into `README.md` (T039).
-      **Partially done**: build (`npm run build`), `npm test` (26/26 pass),
-      and `npm run test:fixtures` (included in the same run) all pass as of
-      this implementation pass. The manual real-Jev/Gemini run against the
-      actual `AI_GATEWAY_API_KEY` was NOT performed (no key is present in
-      this environment) — remains for the user to run and fill into
-      `README.md`'s "Measured cost/latency" table.
+- [X] T040 Run the full `quickstart.md` validation end-to-end (build, `npm
+      test`, `npm run test:fixtures`, and the manual real-Jev/fallback-review
+      run), and record the resulting cost/latency numbers into `README.md`
+      (T039). **Done**: validated via real PRs against the action's own repo
+      (`.github/workflows/jev-gatekeeper.yml`, PRs #1, #2, #5, #6) covering
+      trivial auto-approve, Jev-native block (CI permissions), the fallback
+      review triggering for real (auto-picked `inclusionai/ling-3.0-flash-fin`
+      at call time), `touches_secrets` detection/redaction, config-driven
+      `sensitive_path_patterns` override (US5), and mixed-diff highest-risk-
+      wins. Measured numbers recorded in `README.md`'s "Measured cost/latency"
+      table.
 
 ---
 
