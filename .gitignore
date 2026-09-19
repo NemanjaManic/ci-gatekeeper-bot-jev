@@ -1,13 +1,15 @@
 # local planning notes, never pushed
-"CI Gatekeeper Bot (Jev) — Spec Kit plan.md"
+CI Gatekeeper Bot (Jev) — Spec Kit plan.md
 
 # Claude Code local settings (may contain machine-specific permission overrides)
 .claude/settings.local.json
 
 # Node
 node_modules/
-dist/
 *.log
+
+# dist/ is intentionally NOT ignored: GitHub Actions (node20) need the ncc-bundled
+# dist/index.js committed so consumers of this action don't need a build step.
 
 # env / secrets
 .env
