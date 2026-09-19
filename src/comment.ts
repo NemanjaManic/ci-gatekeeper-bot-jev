@@ -65,12 +65,12 @@ export function buildComment({
 
   if (secondaryReview?.status === "completed") {
     lines.push("");
-    lines.push("#### Detailed review");
+    lines.push(`#### Detailed review (\`${secondaryReview.model}\`)`);
     lines.push(secondaryReview.findings ?? "");
   } else if (secondaryReview?.status === "unavailable") {
     lines.push("");
     lines.push(
-      "_A detailed secondary review was attempted but could not be completed; the routing decision above still applies._"
+      `_A detailed secondary review (\`${secondaryReview.model}\`) was attempted but could not be completed; the routing decision above still applies._`
     );
   }
 
