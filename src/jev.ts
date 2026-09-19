@@ -1,3 +1,6 @@
+// Harmless comment-only edit, added purely to test the sensitive_path_patterns
+// deterministic safety net (this file is listed in .github/jev-gatekeeper.yml).
+//
 // The exact shape of Vercel AI SDK 7's `experimental_evaluate` was verified
 // against the installed `ai@7.0.107` package (see
 // node_modules/@ai-sdk/provider/src/evaluation-model/v4/): each question
