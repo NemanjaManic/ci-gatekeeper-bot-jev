@@ -47933,9 +47933,12 @@ function buildComment({ decision, jevLatencyMs, jevUsage, secondaryReview, fallb
         ? "The fast triage step did not respond in time, so this PR was routed to human-review by default."
         : ROUTE_REASON[decision.route]);
     if (decision.escalated && decision.jev_recommended_route) {
+        const reasonText = decision.escalation_reason === "sensitive-path"
+            ? "a changed file matched a configured sensitive-path pattern"
+            : "the configured risk threshold was exceeded";
         lines.push("");
         lines.push(`\u{1F53A} Escalated from Jev's recommendation (\`${decision.jev_recommended_route}\`) to \`${decision.route}\` ` +
-            "because a risk threshold was exceeded or a changed file matched a sensitive path pattern.");
+            `because ${reasonText}.`);
     }
     if (decision.touches_secrets) {
         lines.push("");
@@ -48539,6 +48542,7 @@ function matchesSensitivePath(changedFiles, patterns) {
 // (data-model.md validation rule; contracts/jev-schema.md mapping rule 1).
 function escalateRoute(jevRoute, risk, changedFiles, config) {
     let effective = jevRoute;
+    let reason = null;
     // risk_threshold_for_block only ever escalates a Jev "auto-approve" verdict
     // (guarding against Jev drastically underestimating a PR) — it must NOT
     // also escalate an already-correct "human-review" verdict straight to
@@ -48548,17 +48552,22 @@ function escalateRoute(jevRoute, risk, changedFiles, config) {
     if (jevRoute === "auto-approve") {
         if (types_1.RISK_ORDER[risk] >= types_1.RISK_ORDER[config.risk_threshold_for_block]) {
             effective = (0, types_1.stricterRoute)(effective, "block");
+            reason = "risk-threshold";
         }
         else if (types_1.RISK_ORDER[risk] > types_1.RISK_ORDER[config.risk_threshold_for_review]) {
             effective = (0, types_1.stricterRoute)(effective, "human-review");
+            reason = "risk-threshold";
         }
     }
     // Sensitive-path matches are a deterministic, maintainer-curated safety
     // net and MAY escalate any route (including human-review) to block.
     if (matchesSensitivePath(changedFiles, config.sensitive_path_patterns)) {
+        if ((0, types_1.stricterRoute)(effective, "block") !== effective) {
+            reason = "sensitive-path";
+        }
         effective = (0, types_1.stricterRoute)(effective, "block");
     }
-    return { route: effective, escalated: effective !== jevRoute };
+    return { route: effective, escalated: effective !== jevRoute, reason: effective !== jevRoute ? reason : null };
 }
 async function triagePullRequest(input, pull_request_number, head_sha, config) {
     const startedAt = Date.now();
@@ -48590,6 +48599,7 @@ async function triagePullRequest(input, pull_request_number, head_sha, config) {
                 jev_recommended_route: null,
                 route: "human-review",
                 escalated: false,
+                escalation_reason: null,
                 touches_secrets: false,
                 source: "fallback-default",
             },
@@ -48606,7 +48616,7 @@ async function triagePullRequest(input, pull_request_number, head_sha, config) {
         latency_ms,
         status: "success",
     });
-    const { route, escalated } = escalateRoute(response.route, response.risk, input.changedFiles, config);
+    const { route, escalated, reason } = escalateRoute(response.route, response.risk, input.changedFiles, config);
     return {
         decision: {
             pull_request_number,
@@ -48616,6 +48626,7 @@ async function triagePullRequest(input, pull_request_number, head_sha, config) {
             jev_recommended_route: response.route,
             route,
             escalated,
+            escalation_reason: reason,
             touches_secrets: response.touches_secrets,
             source: "jev",
         },

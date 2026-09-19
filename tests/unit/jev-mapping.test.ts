@@ -52,12 +52,12 @@ function mockJevAnswer(opts: {
 describe("escalateRoute", () => {
   it("does not escalate when risk is at/below the review threshold", () => {
     const result = escalateRoute("auto-approve", "cosmetic", ["README.md"], baseConfig);
-    expect(result).toEqual({ route: "auto-approve", escalated: false });
+    expect(result).toEqual({ route: "auto-approve", escalated: false, reason: null });
   });
 
   it("escalates auto-approve to human-review when risk exceeds the review threshold", () => {
     const result = escalateRoute("auto-approve", "moderate", ["src/index.ts"], baseConfig);
-    expect(result).toEqual({ route: "human-review", escalated: true });
+    expect(result).toEqual({ route: "human-review", escalated: true, reason: "risk-threshold" });
   });
 
   it("does NOT escalate an already-correct human-review verdict to block from risk alone", () => {
@@ -65,13 +65,13 @@ describe("escalateRoute", () => {
     // risk. If risk_threshold_for_block could escalate human-review -> block
     // by itself, that path would never be reachable.
     const result = escalateRoute("human-review", "blocking", ["src/auth.ts"], baseConfig);
-    expect(result).toEqual({ route: "human-review", escalated: false });
+    expect(result).toEqual({ route: "human-review", escalated: false, reason: null });
   });
 
   it("escalates auto-approve straight to block when risk is at/above the block threshold", () => {
     // Guards against Jev drastically underestimating a PR.
     const result = escalateRoute("auto-approve", "blocking", ["src/auth.ts"], baseConfig);
-    expect(result).toEqual({ route: "block", escalated: true });
+    expect(result).toEqual({ route: "block", escalated: true, reason: "risk-threshold" });
   });
 
   it("escalates to block when a changed file matches a sensitive path pattern, even at moderate risk", () => {
@@ -80,13 +80,13 @@ describe("escalateRoute", () => {
       sensitive_path_patterns: [".github/workflows/**"],
     };
     const result = escalateRoute("human-review", "moderate", [".github/workflows/ci.yml"], config);
-    expect(result).toEqual({ route: "block", escalated: true });
+    expect(result).toEqual({ route: "block", escalated: true, reason: "sensitive-path" });
   });
 
   it("never loosens a stricter Jev recommendation", () => {
     // Jev already said block; nothing in config should be able to downgrade it.
     const result = escalateRoute("block", "cosmetic", ["README.md"], baseConfig);
-    expect(result).toEqual({ route: "block", escalated: false });
+    expect(result).toEqual({ route: "block", escalated: false, reason: null });
   });
 
   it("treats a mixed trivial+sensitive diff at its highest risk, not an average", () => {
@@ -95,7 +95,7 @@ describe("escalateRoute", () => {
       sensitive_path_patterns: [".github/workflows/**"],
     };
     const result = escalateRoute("auto-approve", "cosmetic", ["README.md", ".github/workflows/ci.yml"], config);
-    expect(result).toEqual({ route: "block", escalated: true });
+    expect(result).toEqual({ route: "block", escalated: true, reason: "sensitive-path" });
   });
 });
 

@@ -44,10 +44,14 @@ export function buildComment({
   );
 
   if (decision.escalated && decision.jev_recommended_route) {
+    const reasonText =
+      decision.escalation_reason === "sensitive-path"
+        ? "a changed file matched a configured sensitive-path pattern"
+        : "the configured risk threshold was exceeded";
     lines.push("");
     lines.push(
       `\u{1F53A} Escalated from Jev's recommendation (\`${decision.jev_recommended_route}\`) to \`${decision.route}\` ` +
-        "because a risk threshold was exceeded or a changed file matched a sensitive path pattern."
+        `because ${reasonText}.`
     );
   }
 

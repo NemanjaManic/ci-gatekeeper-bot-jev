@@ -80,6 +80,8 @@ function matchesSensitivePath(changedFiles: string[], patterns: string[]): boole
   return changedFiles.some((file) => patterns.some((pattern) => minimatch(file, pattern)));
 }
 
+export type EscalationReason = "risk-threshold" | "sensitive-path" | null;
+
 // Config-driven escalation only ever tightens the decision, never loosens it
 // (data-model.md validation rule; contracts/jev-schema.md mapping rule 1).
 export function escalateRoute(
@@ -87,8 +89,9 @@ export function escalateRoute(
   risk: Risk,
   changedFiles: string[],
   config: RiskConfiguration
-): { route: Route; escalated: boolean } {
+): { route: Route; escalated: boolean; reason: EscalationReason } {
   let effective = jevRoute;
+  let reason: EscalationReason = null;
 
   // risk_threshold_for_block only ever escalates a Jev "auto-approve" verdict
   // (guarding against Jev drastically underestimating a PR) — it must NOT
@@ -99,18 +102,23 @@ export function escalateRoute(
   if (jevRoute === "auto-approve") {
     if (RISK_ORDER[risk] >= RISK_ORDER[config.risk_threshold_for_block]) {
       effective = stricterRoute(effective, "block");
+      reason = "risk-threshold";
     } else if (RISK_ORDER[risk] > RISK_ORDER[config.risk_threshold_for_review]) {
       effective = stricterRoute(effective, "human-review");
+      reason = "risk-threshold";
     }
   }
 
   // Sensitive-path matches are a deterministic, maintainer-curated safety
   // net and MAY escalate any route (including human-review) to block.
   if (matchesSensitivePath(changedFiles, config.sensitive_path_patterns)) {
+    if (stricterRoute(effective, "block") !== effective) {
+      reason = "sensitive-path";
+    }
     effective = stricterRoute(effective, "block");
   }
 
-  return { route: effective, escalated: effective !== jevRoute };
+  return { route: effective, escalated: effective !== jevRoute, reason: effective !== jevRoute ? reason : null };
 }
 
 export interface TriageResult {
@@ -155,6 +163,7 @@ export async function triagePullRequest(
         jev_recommended_route: null,
         route: "human-review",
         escalated: false,
+        escalation_reason: null,
         touches_secrets: false,
         source: "fallback-default",
       },
@@ -173,7 +182,7 @@ export async function triagePullRequest(
     status: "success",
   });
 
-  const { route, escalated } = escalateRoute(response.route, response.risk, input.changedFiles, config);
+  const { route, escalated, reason } = escalateRoute(response.route, response.risk, input.changedFiles, config);
 
   return {
     decision: {
@@ -184,6 +193,7 @@ export async function triagePullRequest(
       jev_recommended_route: response.route,
       route,
       escalated,
+      escalation_reason: reason,
       touches_secrets: response.touches_secrets,
       source: "jev",
     },
