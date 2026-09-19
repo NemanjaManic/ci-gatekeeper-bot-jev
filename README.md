@@ -1,8 +1,5 @@
 # CI Gatekeeper Bot (Jev)
 
-<!-- smoke-test PR: trivial docs-only change to exercise the real Jev pipeline end-to-end -->
-
-
 A GitHub Action that uses Jev (TypeSafe AI, via the
 Vercel AI Gateway) to cheaply and quickly triage pull requests before an
 expensive LLM or human review. See
@@ -123,7 +120,8 @@ npm run test:fixtures   # fixture-based pipeline tests
 
 See [`specs/001-jev-pr-triage/quickstart.md`](specs/001-jev-pr-triage/quickstart.md)
 for the full validation guide, including manual end-to-end runs against real
-Jev/Gemini calls.
+Jev/secondary-review calls (see the "Measured cost/latency" section above for
+real results already collected).
 
 `dist/` is committed intentionally (not gitignored): GitHub Actions using
 `runs.using: node20` need the bundled `dist/index.js` present so consumers of
@@ -147,12 +145,25 @@ this action don't need a build step.
 
 ## Measured cost/latency (SC-005)
 
-_To be filled in after running the manual validation in `quickstart.md`
-against a real Vercel AI Gateway key:_
+Real numbers from running this action against its own repo (see
+`.github/workflows/jev-gatekeeper.yml`), Vercel AI Gateway, live Jev model:
 
-| Scenario | Jev latency | Jev cost (tokens) | Fallback review latency | Fallback cost (tokens) |
-|---|---|---|---|---|
-| Trivial (docs-only) PR | _TBD_ | _TBD_ | n/a | n/a |
-| High-risk PR (human-review) | _TBD_ | _TBD_ | _TBD_ | _TBD_ |
+| Scenario | Route | Jev latency | Jev tokens (in/out) | Fallback review latency | Fallback tokens (in/out) |
+|---|---|---|---|---|---|
+| Trivial docs-only PR | `auto-approve`\* | 553 ms | 6798 / 120 | n/a (not triggered) | n/a |
+| CI/CD permissions widened to `write-all` | `block` (Jev's own call) | 612 ms | 743 / 117 | n/a (route wasn't `human-review`) | n/a |
+| Fake credential-looking file | `human-review` | 629 ms | 737 / 118 | 5137 ms | not captured |
+| Mixed trivial + auth-shaped risky diff | `human-review` | 504 ms | 998 / 118 | 4122 ms | 491 / 881 |
 
-Compare against a full-LLM-per-PR baseline once these numbers are collected.
+\*Jev itself often returned `risk: moderate` even for trivial diffs; this
+repo's conservative default (`risk_threshold_for_review: cosmetic`)
+escalated those to `human-review` in practice — see the PR discussion
+history for the exact routing per test.
+
+The one-time fallback review (auto-picked cheapest available model, observed
+as `inclusionai/ling-3.0-flash-fin` on this account) costs roughly 5-10x the
+latency and token volume of the Jev triage call alone, which is exactly the
+point: it only runs for a minority of PRs (`human-review` + elevated risk),
+not for every PR — versus a baseline of running a full LLM review on 100% of
+PRs, which would pay that 4-5 second, ~1000-token cost on every single PR
+regardless of risk.

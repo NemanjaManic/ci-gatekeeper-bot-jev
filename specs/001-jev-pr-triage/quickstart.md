@@ -3,8 +3,9 @@
 ## Prerequisites
 
 - Node.js 20+, npm
-- A Vercel AI Gateway API key with access to `typesafe-ai/jev` and a Gemini
-  model, exported as `AI_GATEWAY_API_KEY`
+- A Vercel AI Gateway API key with access to `typesafe-ai/jev` and at least
+  one priced language model (for the auto-picked fallback review), exported
+  as `AI_GATEWAY_API_KEY`
 - A GitHub repository (or fork) to run the action against, with a
   `GITHUB_TOKEN` available (Actions provides this automatically in CI)
 
@@ -21,7 +22,7 @@ npm run build     # runs @vercel/ncc to produce dist/index.js
 npm test           # Vitest: jev.ts mapping, config precedence, secret redaction
 ```
 
-Expected: all tests pass without any network calls (Jev/GitHub/Gemini calls are
+Expected: all tests pass without any network calls (Jev/GitHub/fallback-review calls are
 mocked per `tests/unit/`).
 
 ## Fixture-based pipeline tests
@@ -31,7 +32,7 @@ npm run test:fixtures
 ```
 
 Runs the full orchestration (`src/index.ts`) against fixture diffs in
-`tests/fixtures/` with mocked GitHub/Jev/Gemini responses:
+`tests/fixtures/` with mocked GitHub/Jev/fallback-review responses:
 
 1. **Trivial PR fixture** (docs-only diff) → expect `route: auto-approve`,
    status check `success`, no `SecondaryReviewResult` computed.
@@ -49,7 +50,7 @@ resolved fast with no escalation; sensitive PRs never silently pass; every
 outcome has a rendered comment per `contracts/pr-comment-format.md`; secondary
 review only invoked for the human-review + elevated-risk fixture).
 
-## Manual end-to-end validation (real Jev/Gemini calls)
+## Manual end-to-end validation (real Jev/fallback-review calls)
 
 Since a real `AI_GATEWAY_API_KEY` is available for this project:
 
