@@ -1,2 +1,14 @@
 # local planning notes, never pushed
 "CI Gatekeeper Bot (Jev) — Spec Kit plan.md"
+
+# Claude Code local settings (may contain machine-specific permission overrides)
+.claude/settings.local.json
+
+# Node
+node_modules/
+dist/
+*.log
+
+# env / secrets
+.env
+.env.local
