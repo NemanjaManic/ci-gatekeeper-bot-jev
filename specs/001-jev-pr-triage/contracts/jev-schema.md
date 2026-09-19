@@ -40,9 +40,18 @@ type JevTriageResponse = {
    combines it with the repo's `RiskConfiguration` (`risk_threshold_for_block`,
    `sensitive_path_patterns`) to compute the **effective route**:
    - Start from Jev's `route`.
-   - If `risk` is at/above `risk_threshold_for_block`, OR any changed file
-     matches `sensitive_path_patterns`, escalate the effective route to at
-     least `block` (never below what Jev already recommended).
+   - If Jev recommended `auto-approve`: escalate to `block` when `risk` is
+     at/above `risk_threshold_for_block` (Jev drastically underestimated the
+     PR), otherwise escalate to `human-review` when `risk` is above
+     `risk_threshold_for_review`.
+   - `risk_threshold_for_block` deliberately does NOT escalate an
+     already-correct `human-review` recommendation straight to `block` on
+     risk alone — FR-006's fallback review is gated on `route ==
+     "human-review"` at elevated risk, so that path must stay reachable.
+   - Regardless of Jev's recommendation, if any changed file matches
+     `sensitive_path_patterns`, escalate the effective route to at least
+     `block` (a deterministic, maintainer-curated safety net, distinct from
+     the fuzzy risk score).
    - Escalation only ever makes the effective route stricter
      (`auto-approve` → `human-review` → `block`); config MUST NOT be able to
      downgrade a `block`/`human-review` recommendation to `auto-approve`.

@@ -1,0 +1,39 @@
+name: "Jev PR Gatekeeper"
+description: "Cheaply triages pull requests with Jev (TypeSafe AI) before expensive LLM or human review"
+author: "NemanjaManic"
+
+inputs:
+  github-token:
+    description: "Token with permission to read PR diff, post comments, and set status checks"
+    required: true
+  ai-gateway-api-key:
+    description: "Vercel AI Gateway API key (pass from a repo secret, e.g. AI_GATEWAY_API_KEY)"
+    required: true
+  risk-threshold-for-review:
+    description: "Minimum risk level ('cosmetic' | 'moderate' | 'blocking') that prevents auto-approve"
+    required: false
+    default: "cosmetic"
+  risk-threshold-for-block:
+    description: "Minimum risk level ('moderate' | 'blocking') that forces block over human-review"
+    required: false
+    default: "blocking"
+  fallback-review-risk-threshold:
+    description: "Minimum risk level (at route=human-review) that triggers the detailed secondary review"
+    required: false
+    default: "blocking"
+  config-path:
+    description: "Path to the optional repo risk-configuration file"
+    required: false
+    default: ".github/jev-gatekeeper.yml"
+
+outputs:
+  route:
+    description: "Final routing decision: auto-approve | human-review | block"
+  risk:
+    description: "Final risk level: cosmetic | moderate | blocking"
+  touches_secrets:
+    description: "Whether the diff appeared to contain a secret or credential"
+
+runs:
+  using: "node20"
+  main: "dist/index.js"
