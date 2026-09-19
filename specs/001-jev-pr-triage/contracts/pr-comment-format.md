@@ -19,6 +19,11 @@ marker such as `<!-- jev-gatekeeper -->`).
 files, so it was auto-approved." or "This PR modifies a CI/CD workflow file,
 which is treated as high risk and requires human approval."}
 
+{IF escalated == true:}
+🔺 Escalated from Jev's recommendation (`{jev_recommended_route}`) to `{route}`
+because {risk threshold exceeded | a changed file matched a sensitive path
+pattern}.
+
 {IF touches_secrets == true:}
 ⚠️ This PR's diff contains content that looks like it could be a secret or
 credential. It has not been logged or quoted here — please review manually.

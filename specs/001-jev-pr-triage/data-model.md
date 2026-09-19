@@ -15,13 +15,19 @@ The typed outcome of evaluating one PR at a given commit SHA.
 | `head_sha` | string | Commit SHA the decision applies to; re-triage on new commits produces a new decision, not an update to the old one (Edge Case: PR updated after triage) |
 | `should_review` | boolean | Explanatory signal only. MUST NOT drive control flow (Constitution V) |
 | `risk` | `"cosmetic" \| "moderate" \| "blocking"` | Ordinal; the PR's overall risk is the **maximum** risk across all changed-file signals (Edge Case: mixed trivial + sensitive diff) |
-| `route` | `"auto-approve" \| "human-review" \| "block"` | Authoritative — the only field that determines the status check outcome (Constitution V) |
+| `jev_recommended_route` | `"auto-approve" \| "human-review" \| "block"` \| null | Jev's raw answer; `null` when `source == "fallback-default"`. Kept for the decision log/comment, not used directly for the status check |
+| `route` | `"auto-approve" \| "human-review" \| "block"` | The **effective** route after applying `RiskConfiguration` escalation rules to `jev_recommended_route` (see `contracts/jev-schema.md`). Authoritative — the only field that determines the status check outcome (Constitution V) |
+| `escalated` | boolean | `true` when `route` is stricter than `jev_recommended_route` because of a risk threshold or `sensitive_path_patterns` match — surfaced in the PR comment so escalation is never silent (Constitution III) |
 | `touches_secrets` | boolean | When `true`, downstream comment/log rendering MUST redact diff content (Constitution IV) |
 | `source` | `"jev" \| "fallback-default"` | `"fallback-default"` when Jev failed/timed out and the safe default (`route: human-review`) was substituted (Constitution VI, FR-009) |
 
 **Validation rules**:
-- If `source == "fallback-default"`, `route` MUST be `"human-review"` and the
+- If `source == "fallback-default"`, `route` MUST be `"human-review"`,
+  `jev_recommended_route` MUST be `null`, `escalated` MUST be `false`, and the
   PR comment MUST state the fast triage step failed.
+- `route` MUST NOT be a looser outcome than `jev_recommended_route`
+  (`auto-approve` < `human-review` < `block`) — escalation only ever
+  tightens the decision, never loosens it.
 - A contradiction between `should_review` and `route` is valid data, not an
   error — no validation rule rejects it (Constitution V, Edge Case).
 
